@@ -1,0 +1,3 @@
+com.smallc.tinyrpc.registry.impl.ZooKeeperNameService
+com.smallc.tinyrpc.registry.impl.LocalFileNameService
+com.smallc.tinyrpc.registry.impl.JdbcNameService
