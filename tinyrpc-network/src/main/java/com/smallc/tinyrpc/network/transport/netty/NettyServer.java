@@ -20,8 +20,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author LiYue
- * Date: 2019/9/20
+ * @author zhang
+ * @version 1.0
+ * @since com.smallc.tinyrpc.network.transport.netty
  */
 public class NettyServer implements TransportServer {
 
