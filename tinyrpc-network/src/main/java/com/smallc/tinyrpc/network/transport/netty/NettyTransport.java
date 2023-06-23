@@ -16,8 +16,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
- * @author LiYue
- * Date: 2019/9/20
+ * @author zhang
+ * @version 1.0
+ * @since com.smallc.tinyrpc.network.transport.netty
  */
 public class NettyTransport implements Transport<TinyRpcPacket> {
 
