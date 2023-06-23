@@ -25,8 +25,9 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 /**
- * @author LiYue
- * Date: 2019/9/20
+ * @author zhang
+ * @version 1.0
+ * @since com.smallc.tinyrpc.network.transport.netty
  */
 public class NettyClient implements TransportClient {
     private EventLoopGroup ioEventGroup;
