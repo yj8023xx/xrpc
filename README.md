@@ -1,6 +1,8 @@
 # TinyRpc
 
-TinyRpc 是一款轻量级，模块化的 RPC 框架
+TinyRpc 是一款轻量级，模块化的 RPC 框架，根据不同的角色任务划分为了 5 个模块，分别为 client、server、registry、network 和 common，你可以很容易在 TinyRpc 上进行二次开发，设计自己的序列化协议、注册中心和负载均衡策略等。
+
+如果项目对你有帮助，希望你可以给我一个 star！
 
 
 
@@ -15,8 +17,20 @@ TinyRpc 是一款轻量级，模块化的 RPC 框架
 - 面向接口编程
 - 支持自动服务注册和发现
 - 支持与 Spring 框架无缝整合
-- 可以配置不同的序列化协议、负载均衡策略和注册中心
+- 支持配置不同的序列化协议、注册中心和负载均衡策略
 - 高可扩展
+
+
+
+## 模块
+
+|       模块       |                         功能                         |
+| :--------------: | :--------------------------------------------------: |
+|  tinyrpc-client  |       主要用于创建 TinyRpc 客户端实例和服务桩        |
+|  tinyrpc-server  |   主要用于创建 TinyRpc 服务端实例和设计请求处理器    |
+| tinyrpc-network  |  主要负责进行网络传输、将请求提交给不同的请求处理器  |
+| tinyrpc-registry |              主要用于注册和获取服务实例              |
+|  tinyrpc-common  | 公共的接口，包括序列化协议、负载均衡策略、SPI 机制等 |
 
 
 
@@ -40,7 +54,7 @@ public class Server {
         HelloService helloService = new HelloServiceImpl();
 
         logger.info("向RPC框架注册服务提供者...");
-        server.addServiceProvider(helloService, HelloService.class);
+        server.addServiceProvider(HelloService.class, helloService);
 
         logger.info("开始提供服务...");
         server.start();
@@ -62,7 +76,7 @@ public class Client {
         TinyRpcClient client = new TinyRpcClient(nameServiceUri);
 
         logger.info("创建服务桩...");
-        HelloService helloService = client.getRemoteService(HelloService.class);
+        HelloService helloService = client.getRemoteService(HelloService.class, new RoundRobinLoadBalancer(), new JsonSerializer());
         assert helloService != null;
 
         String name = "World!";
@@ -106,7 +120,7 @@ public class HelloController {
 
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
 
-    @RpcReference
+    @RpcReference(loadbalance = "roundrobin", serialize = "json")
     private HelloService helloService;
 
     public void say() {
