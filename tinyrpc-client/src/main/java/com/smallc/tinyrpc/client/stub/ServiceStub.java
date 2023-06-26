@@ -1,6 +1,6 @@
 package com.smallc.tinyrpc.client.stub;
 
-import com.smallc.tinyrpc.common.bean.RpcRequest;;
+import com.smallc.tinyrpc.common.bean.RpcRequest;
 import com.smallc.tinyrpc.common.bean.RpcRequestId;
 import com.smallc.tinyrpc.common.loadbalancer.LoadBalancer;
 import com.smallc.tinyrpc.common.serializer.ProtostuffSerializerUtil;
