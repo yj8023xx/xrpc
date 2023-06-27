@@ -1,6 +1,6 @@
 # TinyRpc
 
-TinyRpc 是一款轻量级，模块化的 RPC 框架，根据不同的角色任务划分为了 5 个模块，分别为 client、server、registry、network 和 common，你可以很容易在 TinyRpc 上进行二次开发，设计自己的网络传输方式、序列化协议、注册中心和负载均衡策略等。
+TinyRpc 是一款轻量级，模块化的 RPC 框架，根据不同的角色任务划分为了 5 个模块，分别为 client、server、registry、network 和 common。本项目大量采用了面向接口的编程方式，因此你可以很容易在 TinyRpc 上进行二次开发，设计自己的网络传输方式、序列化协议、注册中心和负载均衡策略等。
 
 
 
