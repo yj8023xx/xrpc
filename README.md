@@ -27,7 +27,7 @@ TinyRPC 是一款轻量级，模块化的 RPC 框架，根据不同的角色任�
 | :--------------: | :--------------------------------------------------: | :----------------------------------------------------------: |
 |  tinyrpc-client  |       主要用于创建 TinyRpc 客户端实例和服务桩        | 目前支持 `JDK` 动态代理的方式创建服务桩，后续会添加其他创建方式 |
 |  tinyrpc-server  |   主要用于创建 TinyRpc 服务端实例和设计请求处理器    |                              -                               |
-| tinyrpc-network  |  主要负责进行网络传输、将请求提交给不同的请求处理器  | 目前支持 `Netty` 网络传输方式，后续可能会添加其他的网络传输方式 |
+| tinyrpc-network  |  主要负责进行网络传输、将请求提交给不同的请求处理器  | 目前支持 `Netty` 网络传输方式，后续会添加 `RDMA` 网络传输方式 |
 | tinyrpc-registry |              主要用于注册和获取服务实例              | 目前支持 `ZooKeeper` 注册中心，后续会添加对其他注册中心的支持 |
 |  tinyrpc-common  | 公共的接口，包括序列化协议、负载均衡策略、SPI 机制等 | 目前支持 `Hessian`、`JSON` 和 `Protostuff` 等序列化方式，支持 `Random`、`RoundRobin` 和 `IPHash` 等负载均衡策略 |
 
@@ -146,3 +146,4 @@ public class HelloController {
 
 - **[NettyRpc](https://github.com/luxiaoxun/NettyRpc)**
 - **[simple-rpc-framework](https://github.com/liyue2008/simple-rpc-framework)**
+
