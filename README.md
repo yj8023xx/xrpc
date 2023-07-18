@@ -19,6 +19,8 @@ TinyRPC 是一款轻量级，模块化的 RPC 框架，根据不同的角色任�
 - 支持配置不同的序列化协议、注册中心和负载均衡策略；
 - 支持 RDMA 通信协议，可实现极低传输延迟，且对上层应用透明。
 
+> [什么是 RDMA？](https://www.fibermall.com/blog/what-is-rdma.htm)
+
 
 
 ## 模块
@@ -144,8 +146,6 @@ public class HelloController {
 - GCC: 10.1.0
 
 ![rdma_rpc_latency](./img/rdma_rpc_latency.svg)
-
-- [What is RDMA?](https://www.fibermall.com/blog/what-is-rdma.htm)
 
 
 
