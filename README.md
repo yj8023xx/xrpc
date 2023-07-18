@@ -141,6 +141,7 @@ public class HelloController {
 - RDMA NIC: ConnectX-3
 - CPU: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz 
 - OS: CentOS Linux 7
+- GCC: 10.1.0
 
 ![rdma_rpc_latency](./img/rdma_rpc_latency.svg)
 
