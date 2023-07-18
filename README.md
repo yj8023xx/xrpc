@@ -142,7 +142,7 @@ public class HelloController {
 - CPU: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz 
 - OS: CentOS Linux 7
 
-<img src="./img/rdma_rpc_latency.png" alt="rdma_rpc_latency" style="zoom: 50%;" />
+![rdma_rpc_latency](./img/rdma_rpc_latency.svg)
 
 - [What is RDMA?](https://www.fibermall.com/blog/what-is-rdma.htm)
 
