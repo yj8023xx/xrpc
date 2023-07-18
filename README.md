@@ -134,6 +134,20 @@ public class HelloController {
 
 
 
+## 测试
+
+**配置**
+
+- RDMA NIC: ConnectX-3
+- CPU: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz 
+- OS: CentOS Linux 7
+
+<img src="./img/rdma_rpc_latency.png" alt="rdma_rpc_latency" style="zoom: 50%;" />
+
+- [What is RDMA?](https://www.fibermall.com/blog/what-is-rdma.htm)
+
+
+
 ## 支持
 
 本项目的其他语言支持
