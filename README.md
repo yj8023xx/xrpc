@@ -48,10 +48,10 @@ public class Server {
     public static void main(String[] args) throws Exception {
         String host = "127.0.0.1";
         int port = 2181;
-        URI nameServiceUri = URI.create("zookeeper://" + host + ":" + port);
+        URI registryUri = URI.create("zookeeper://" + host + ":" + port);
 
-        logger.info("创建TinyRpc服务端实例...");
-        TinyRpcServer server = new TinyRpcServer(8090, nameServiceUri);
+        logger.info("创建xRPC服务端实例...");
+        XRpcServer server = new XRpcServer(8090, registryUri);
 
         logger.info("创建服务提供者...");
         HelloService helloService = new HelloServiceImpl();
@@ -75,11 +75,11 @@ public class Client {
         int port = 2181;
         URI nameServiceUri = URI.create("zookeeper://" + host + ":" + port);
 
-        logger.info("创建TinyRpc客户端实例...");
-        TinyRpcClient client = new TinyRpcClient(nameServiceUri);
+        logger.info("创建xRPC客户端实例...");
+        XRpcClient client = new XRpcClient(nameServiceUri);
 
         logger.info("创建服务桩...");
-        HelloService helloService = client.getRemoteService(HelloService.class, new RoundRobinLoadBalancer(), new JsonSerializer());
+        HelloService helloService = client.getRemoteService(HelloService.class, SerializationType.JSON);
         assert helloService != null;
 
         String name = "World!";
@@ -163,4 +163,3 @@ public class HelloController {
 
 - **[NettyRpc](https://github.com/luxiaoxun/NettyRpc)**
 - **[simple-rpc-framework](https://github.com/liyue2008/simple-rpc-framework)**
-
