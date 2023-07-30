@@ -19,10 +19,10 @@ public class Client {
     public static void main(String[] args) {
         String host = "127.0.0.1";
         int port = 2181;
-        URI nameServiceUri = URI.create("zookeeper://" + host + ":" + port);
+        URI registryUri = URI.create("zookeeper://" + host + ":" + port);
 
         logger.info("创建xRPC客户端实例...");
-        XRpcClient client = new XRpcClient(nameServiceUri);
+        XRpcClient client = new XRpcClient(registryUri);
 
         logger.info("创建服务桩...");
         HelloService helloService = client.getRemoteService(HelloService.class, SerializationType.JSON);
