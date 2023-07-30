@@ -1,6 +1,6 @@
-# TinyRPC
+# xRPC
 
-TinyRPC 是一款轻量级、模块化、低延迟的 RPC 框架，支持与 Spring 框架无缝整合，支持 RDMA 协议。本项目大量采用面向接口的编程方式，因此你可以很容易在 TinyRPC 上进行二次开发，设计自己的网络传输方式、序列化协议、注册中心和负载均衡策略等。
+xRPC 是一款轻量级、模块化、低延迟的 RPC 框架，支持与 Spring 框架无缝整合，支持 RDMA 协议。本项目大量采用面向接口的编程方式，因此你可以很容易在 xRPC 上进行二次开发，设计自己的网络传输方式、序列化协议、注册中心和负载均衡策略等。
 
 
 
@@ -155,7 +155,7 @@ public class HelloController {
 
 本项目的其他语言支持
 
-- **[tinyrpc-go](https://github.com/yj8023xx/tinyrpc-go)**
+- **[xrpc-go](https://github.com/yj8023xx/xrpc-go)**
 
 
 
