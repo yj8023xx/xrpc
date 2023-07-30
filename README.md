@@ -2,8 +2,6 @@
 
 xRPC 是一个轻量级、高吞吐、低延迟的 RPC 框架，能够为支持 RDMA 的网络接口提供超低延迟 RPC。本框架支持与 Spring 框架无缝整合，能够让数据中心中的 Spring 应用直接获益。
 
-项目正在进行大改造，敬请期待！
-
 ## 架构
 
 ![registry](./img/registry.svg)
