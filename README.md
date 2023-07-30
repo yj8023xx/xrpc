@@ -2,6 +2,8 @@
 
 xRPC 是一个轻量级、高吞吐、低延迟的 RPC 框架，能够为支持 RDMA 的网络接口提供超低延迟 RPC。本框架支持与 Spring 框架无缝整合，能够让数据中心中的 Spring 应用直接获益。
 
+项目正在进行大改造，敬请期待！
+
 ## 架构
 
 ![registry](./img/registry.svg)
@@ -71,10 +73,10 @@ public class Client {
     public static void main(String[] args) {
         String host = "127.0.0.1";
         int port = 2181;
-        URI registryUri = URI.create("zookeeper://" + host + ":" + port);
+        URI nameServiceUri = URI.create("zookeeper://" + host + ":" + port);
 
         logger.info("创建xRPC客户端实例...");
-        XRpcClient client = new XRpcClient(registryUri);
+        XRpcClient client = new XRpcClient(nameServiceUri);
 
         logger.info("创建服务桩...");
         HelloService helloService = client.getRemoteService(HelloService.class, SerializationType.JSON);
@@ -161,3 +163,4 @@ public class HelloController {
 
 - **[NettyRpc](https://github.com/luxiaoxun/NettyRpc)**
 - **[simple-rpc-framework](https://github.com/liyue2008/simple-rpc-framework)**
+- **[darpc](https://github.com/zrlio/darpc)**
