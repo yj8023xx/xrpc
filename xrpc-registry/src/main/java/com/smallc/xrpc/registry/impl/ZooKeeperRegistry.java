@@ -2,11 +2,14 @@ package com.smallc.xrpc.registry.impl;
 
 import com.smallc.xrpc.registry.Registry;
 import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.exception.ZkMarshallingError;
+import org.I0Itec.zkclient.serialize.ZkSerializer;
 import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.util.*;
 
 /**
@@ -33,6 +36,7 @@ public class ZooKeeperRegistry implements Registry {
         // 创建 ZooKeeper 客户端
         // ZKServers: ip:port
         this.zkClient = new ZkClient(nameServiceUri.getHost() + ":" + nameServiceUri.getPort(), ZK_SESSION_TIMEOUT, ZK_CONNECTION_TIMEOUT);
+        this.zkClient.setZkSerializer(new MyZkSerializer());
     }
 
     @Override
@@ -49,7 +53,7 @@ public class ZooKeeperRegistry implements Registry {
         }
         // 创建 address 节点（临时）
         String addressPath = servicePath + "/";
-        zkClient.createEphemeralSequential(addressPath, uri);
+        zkClient.createEphemeralSequential(addressPath, uri.toString());
     }
 
     @Override
@@ -67,8 +71,8 @@ public class ZooKeeperRegistry implements Registry {
         for (String address : addressList) {
             // 获取 address 节点的值
             String addressPath = servicePath + "/" + address;
-            URI uri = zkClient.readData(addressPath);
-            uris.add(uri);
+            String uri = zkClient.readData(addressPath);
+            uris.add(URI.create(uri));
         }
         return uris;
     }
@@ -76,6 +80,19 @@ public class ZooKeeperRegistry implements Registry {
     @Override
     public Map<String, List<URI>> broadcastServiceAddress() {
         return null;
+    }
+
+    private class MyZkSerializer implements ZkSerializer
+    {
+        public Object deserialize(byte[] bytes) throws ZkMarshallingError
+        {
+            return new String(bytes, Charset.forName("UTF-8"));
+        }
+
+        public byte[] serialize(Object obj) throws ZkMarshallingError
+        {
+            return String.valueOf(obj).getBytes(Charset.forName("UTF-8"));
+        }
     }
 
 }
