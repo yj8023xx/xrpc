@@ -1,14 +1,15 @@
 package com.smallc.xrpc.registry.impl;
 
+import com.alibaba.nacos.api.exception.NacosException;
+import com.alibaba.nacos.api.naming.NamingFactory;
+import com.alibaba.nacos.api.naming.NamingService;
+import com.alibaba.nacos.api.naming.pojo.Instance;
 import com.smallc.xrpc.registry.Registry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author yj8023xx
@@ -27,19 +28,36 @@ public class NacosRegistry implements Registry {
         return schemes;
     }
 
-    @Override
-    public void connect(URI nameServiceUri) {
+    private NamingService namingService = null;
 
+    @Override
+    public void connect(URI registryUri) {
+        if (null == namingService) {
+            try {
+                namingService = NamingFactory.createNamingService(registryUri.getHost() + ":" + registryUri.getPort());
+            } catch (NacosException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Override
     public void registerService(String serviceName, URI uri) throws Exception {
-
+        Instance instance = new Instance();
+        instance.setIp(uri.getHost());
+        instance.setPort(uri.getPort());
+        instance.setServiceName(serviceName);
+        namingService.registerInstance(serviceName, instance);
     }
 
     @Override
     public List<URI> getServiceAddress(String serviceName) throws Exception {
-        return null;
+        List<Instance> instances = namingService.getAllInstances(serviceName);
+        List<URI> uris = new ArrayList<>();
+        for (Instance instance : instances) {
+            uris.add(URI.create("rpc://" + instance.getIp() + ":" + instance.getPort()));
+        }
+        return uris;
     }
 
     @Override
