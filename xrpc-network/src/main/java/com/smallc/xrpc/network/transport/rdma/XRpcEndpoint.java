@@ -11,7 +11,9 @@ import com.smallc.xrpc.network.protocol.XRpcMessage;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -24,9 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class XRpcEndpoint extends RdmaEndpoint {
 
-    private XRpcEndpointGroup group;
+    protected XRpcEndpointGroup group;
     private IbvMr dataMr;
-    private ByteBuffer dataBuffer;
+    private ByteBuffer dataBuffer; // direct buffer
     private ByteBuffer sendBuffer;
     private ByteBuffer recvBuffer;
     private ByteBuffer[] sendBufs;
@@ -37,6 +39,15 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
     private ArrayBlockingQueue<SVCPostSend> freePostSends;
     private int bufferSize;
     private int bufferCount;
+
+    private int recvOffset;
+    private byte[] recvData;
+
+    public enum State {
+        INITIAL, MERGING
+    }
+
+    private State state;
 
     public abstract void handleRecvEvent(XRpcMessage message);
 
@@ -51,19 +62,18 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         this.sendCalls = new SVCPostSend[bufferCount];
         this.recvCalls = new SVCPostRecv[bufferCount];
 
-        this.freePostSends = new ArrayBlockingQueue<>(bufferCount);
         this.pendingPostSends = new ConcurrentHashMap<>();
+        this.freePostSends = new ArrayBlockingQueue<>(bufferCount);
     }
 
     @Override
     protected synchronized void init() throws IOException {
-        int sendBufferOffset = bufferSize * bufferCount;
-
-        // allocate and register memory
+        // Allocate and register memory
         dataBuffer = ByteBuffer.allocateDirect(bufferSize * bufferCount * 2);
         dataMr = registerMemory(dataBuffer).execute().free().getMr();
 
-        // split into two memory blocks of the same size
+        // Split into two memory blocks of the same size
+        int sendBufferOffset = bufferSize * bufferCount;
         dataBuffer.limit(dataBuffer.position() + sendBufferOffset);
         recvBuffer = dataBuffer.slice();
 
@@ -84,7 +94,7 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
             sendCalls[i] = buildSendWr(i);
 
             freePostSends.add(sendCalls[i]);
-            recvCalls[i].execute();
+            recvCalls[i].execute(); // pre post
         }
     }
 
@@ -101,31 +111,77 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         return buffer.array();
     }
 
-    private XRpcMessage decode(ByteBuffer buffer) {
-        byte[] headerBytes = new byte[XRpcConstant.FIXED_HEADER_LENGTH];
-        buffer.get(headerBytes);
+    private XRpcMessage decode(byte[] data) {
+        int splitIndex = XRpcConstant.FIXED_HEADER_LENGTH;
+        byte[] headerBytes = Arrays.copyOfRange(data, 0, splitIndex);
+        byte[] payload = Arrays.copyOfRange(data, splitIndex, data.length);
         XRpcHeader header = XRpcHeaderCodec.decode(headerBytes);
-        byte[] payload = new byte[header.getTotalLength() - header.getHeaderLength()];
-        buffer.get(payload);
         return new XRpcMessage(header, payload);
     }
 
-
-    // TODO 对消息进行分段
-    public boolean send(XRpcMessage message) throws IOException {
-        SVCPostSend postSend = freePostSends.poll();
-        if (null != postSend) {
-            int id = (int) postSend.getWrMod(0).getWr_id();
-            sendBufs[id].put(encode(message));
-            pendingPostSends.put(id, postSend);
-            postSend.execute();
-            return true;
+    private List<byte[]> sliceData(byte[] data, int chunkSize) {
+        List<byte[]> chunkList = new ArrayList<>();
+        int offset = 0;
+        while (offset < data.length) {
+            int size = Math.min(chunkSize, data.length - offset);
+            byte[] chunk = new byte[size];
+            System.arraycopy(data, offset, chunk, 0, size);
+            chunkList.add(chunk);
+            offset += size;
         }
-        return false;
+        return chunkList;
+    }
+
+    public boolean send(XRpcMessage message) throws IOException {
+        byte[] data = encode(message);
+        // Add a header field to represent the size of the data
+        short totalSize = (short) data.length;
+        byte[] newData = new byte[totalSize + Short.BYTES];
+        // Fill the header with totalSize
+        ByteBuffer shortBuffer = ByteBuffer.allocate(Short.BYTES);
+        shortBuffer.putShort(totalSize);
+        byte[] shortBytes = shortBuffer.array();
+        System.arraycopy(shortBytes, 0, newData, 0, shortBytes.length);
+        System.arraycopy(data, 0, newData, shortBytes.length, totalSize);
+        // Slice message
+        List<byte[]> chunkList = sliceData(newData, bufferSize);
+        // Send chunks
+        for (byte[] chunk : chunkList) {
+            SVCPostSend postSend = freePostSends.poll();
+            if (null != postSend) {
+                int id = (int) postSend.getWrMod(0).getWr_id();
+                sendBufs[id].put(chunk);
+                pendingPostSends.put(id, postSend);
+                postSend.execute();
+            } else {
+                return false;
+            }
+        }
+        return true;
     }
 
     protected void postRecv(int index) throws IOException {
         recvCalls[index].execute();
+    }
+
+    private void mergeDataFsm(ByteBuffer chunkBuffer) {
+        switch (state) {
+            case INITIAL: {
+                short totalSize = chunkBuffer.getShort();
+                recvData = new byte[totalSize];
+                int length = Math.min(totalSize, chunkBuffer.remaining());
+                chunkBuffer.get(recvData, 0, length);
+                recvOffset = length;
+                state = State.MERGING;
+            }
+            break;
+            case MERGING: {
+                int length = Math.min(recvData.length - recvOffset, chunkBuffer.remaining());
+                chunkBuffer.get(recvData, recvOffset, length);
+                recvOffset += length;
+            }
+            break;
+        }
     }
 
     public void dispatchCqEvent(IbvWC wc) {
@@ -133,11 +189,17 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         switch (opcode) {
             case IBV_WC_RECV: {
                 int id = (int) wc.getWr_id();
-                handleRecvEvent(decode(recvBufs[id]));
+                // Merge data chunk
+                mergeDataFsm(recvBufs[id]);
                 try {
                     postRecv(id);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
+                }
+                if (recvOffset == recvData.length) {
+                    handleRecvEvent(decode(recvData));
+                    // Start handling next packet
+                    state = State.INITIAL;
                 }
             }
             break;
