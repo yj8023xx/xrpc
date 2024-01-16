@@ -196,7 +196,7 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                if (recvOffset == recvData.length) {
+                if (recvOffset >= recvData.length) {
                     handleRecvEvent(decode(recvData));
                     // Start handling next packet
                     state = State.INITIAL;
