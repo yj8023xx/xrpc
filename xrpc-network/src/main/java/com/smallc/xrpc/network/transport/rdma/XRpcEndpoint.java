@@ -29,10 +29,8 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
     protected XRpcEndpointGroup group;
     private IbvMr dataMr;
     private ByteBuffer dataBuffer; // direct buffer
-    private ByteBuffer sendBuffer;
-    private ByteBuffer recvBuffer;
-    private ByteBuffer[] sendBufs;
-    private ByteBuffer[] recvBufs;
+    private ByteBuffer[] sendBuffers;
+    private ByteBuffer[] recvBuffers;
     private SVCPostSend[] sendCalls;
     private SVCPostRecv[] recvCalls;
     private ConcurrentHashMap<Integer, SVCPostSend> pendingPostSends;
@@ -57,8 +55,8 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
 
         this.bufferSize = group.getBufferSize();
         this.bufferCount = group.getBufferCount();
-        this.sendBufs = new ByteBuffer[bufferCount];
-        this.recvBufs = new ByteBuffer[bufferCount];
+        this.sendBuffers = new ByteBuffer[bufferCount];
+        this.recvBuffers = new ByteBuffer[bufferCount];
         this.sendCalls = new SVCPostSend[bufferCount];
         this.recvCalls = new SVCPostRecv[bufferCount];
 
@@ -75,20 +73,20 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         // Split into two memory blocks of the same size
         int sendBufferOffset = bufferSize * bufferCount;
         dataBuffer.limit(dataBuffer.position() + sendBufferOffset);
-        recvBuffer = dataBuffer.slice();
+        ByteBuffer recvBuffer = dataBuffer.slice();
 
         dataBuffer.position(sendBufferOffset);
         dataBuffer.limit(dataBuffer.position() + sendBufferOffset);
-        sendBuffer = dataBuffer.slice();
+        ByteBuffer sendBuffer = dataBuffer.slice();
 
         for (int i = 0; i < bufferCount; i++) {
             recvBuffer.position(i * bufferSize);
             recvBuffer.limit(recvBuffer.position() + bufferSize);
-            recvBufs[i] = recvBuffer.slice();
+            recvBuffers[i] = recvBuffer.slice();
 
             sendBuffer.position(i * bufferSize);
             sendBuffer.limit(sendBuffer.position() + bufferSize);
-            sendBufs[i] = sendBuffer.slice();
+            sendBuffers[i] = sendBuffer.slice();
 
             recvCalls[i] = buildRecvWr(i);
             sendCalls[i] = buildSendWr(i);
@@ -132,7 +130,7 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         return chunkList;
     }
 
-    public boolean send(XRpcMessage message) throws IOException {
+    public synchronized boolean send(XRpcMessage message) throws IOException, InterruptedException {
         byte[] data = encode(message);
         // Add a header field to represent the size of the data
         short totalSize = (short) data.length;
@@ -147,10 +145,15 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         List<byte[]> chunkList = sliceData(newData, bufferSize);
         // Send chunks
         for (byte[] chunk : chunkList) {
-            SVCPostSend postSend = freePostSends.poll();
+            SVCPostSend postSend = freePostSends.take(); // TODO take or poll
             if (null != postSend) {
                 int id = (int) postSend.getWrMod(0).getWr_id();
-                sendBufs[id].put(chunk);
+                postSend.getWrMod(0).getSgeMod(0).setLength(chunk.length);
+                postSend.getWrMod(0).setSend_flags(IbvSendWR.IBV_SEND_SIGNALED);
+                if (chunk.length <= group.getMaxInlineData()) {
+                    postSend.getWrMod(0).setSend_flags(postSend.getWrMod(0).getSend_flags() | IbvSendWR.IBV_SEND_INLINE);
+                }
+                sendBuffers[id].put(chunk);
                 pendingPostSends.put(id, postSend);
                 postSend.execute();
             } else {
@@ -162,6 +165,11 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
 
     protected void postRecv(int index) throws IOException {
         recvCalls[index].execute();
+    }
+
+    public void freePostSend(int id) throws IOException {
+        SVCPostSend postSend = pendingPostSends.remove(id);
+        this.freePostSends.add(postSend);
     }
 
     private void mergeDataFsm(ByteBuffer chunkBuffer) {
@@ -184,13 +192,17 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         }
     }
 
+    /**
+     * Only execute in a single thread
+     * @param wc
+     */
     public void dispatchCqEvent(IbvWC wc) {
         IbvWC.IbvWcOpcode opcode = IbvWC.IbvWcOpcode.valueOf(wc.getOpcode());
         switch (opcode) {
             case IBV_WC_RECV: {
                 int id = (int) wc.getWr_id();
                 // Merge data chunk
-                mergeDataFsm(recvBufs[id]);
+                mergeDataFsm(recvBuffers[id]);
                 try {
                     postRecv(id);
                 } catch (IOException e) {
@@ -206,7 +218,7 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
             case IBV_WC_SEND: {
                 int id = (int) wc.getWr_id();
                 try {
-                    freePostSend(id);
+                    freePostSend(id); // TODO whether release
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -222,7 +234,7 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         LinkedList<IbvSge> sgeList = new LinkedList<IbvSge>();
 
         IbvSge sge = new IbvSge();
-        sge.setAddr(MemoryUtils.getAddress(sendBufs[wrId]));
+        sge.setAddr(MemoryUtils.getAddress(sendBuffers[wrId]));
         sge.setLength(bufferSize);
         sge.setLkey(dataMr.getLkey());
         IbvSendWR sendWR = new IbvSendWR();
@@ -241,7 +253,7 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         LinkedList<IbvSge> sgeList = new LinkedList<IbvSge>();
 
         IbvSge sge = new IbvSge();
-        sge.setAddr(MemoryUtils.getAddress(recvBufs[wrId]));
+        sge.setAddr(MemoryUtils.getAddress(recvBuffers[wrId]));
         sge.setLength(bufferSize);
         sge.setLkey(dataMr.getLkey());
 
@@ -251,11 +263,6 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         recvWRs.add(recvWR);
 
         return postRecv(recvWRs);
-    }
-
-    public void freePostSend(int id) throws IOException {
-        SVCPostSend postSend = pendingPostSends.remove(id);
-        this.freePostSends.add(postSend);
     }
 
 }
