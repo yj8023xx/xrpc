@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class XRpcEndpoint extends RdmaEndpoint {
 
+    private int clusterId;
     protected XRpcEndpointGroup group;
     private IbvMr dataMr;
     private ByteBuffer dataBuffer; // direct buffer
@@ -51,6 +52,7 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
 
     protected XRpcEndpoint(XRpcEndpointGroup group, RdmaCmId idPriv, boolean serverSide) throws IOException {
         super(group, idPriv, serverSide);
+        this.clusterId = group.newClusterId();
         this.group = group;
 
         this.bufferSize = group.getBufferSize();
@@ -64,6 +66,11 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         this.freePostSends = new ArrayBlockingQueue<>(bufferCount);
     }
 
+    /**
+     * Pre allocate resources before connecting.
+     *
+     * @throws IOException
+     */
     @Override
     protected synchronized void init() throws IOException {
         // Allocate and register memory
@@ -100,6 +107,10 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
     public synchronized void close() throws IOException, InterruptedException {
         super.close();
         deregisterMemory(dataMr);
+    }
+
+    public int getClusterId() {
+        return clusterId;
     }
 
     private byte[] encode(XRpcMessage message) {
@@ -194,20 +205,24 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
 
     /**
      * Only execute in a single thread
+     *
      * @param wc
+     * @throws IOException
      */
-    public void dispatchCqEvent(IbvWC wc) {
+    public void dispatchCqEvent(IbvWC wc) throws IOException {
+        if (wc.getStatus() == 5) {
+            return;
+        } else if (wc.getStatus() != 0) {
+            throw new IOException("Faulty operation! wc.status " + wc.getStatus());
+        }
+
         IbvWC.IbvWcOpcode opcode = IbvWC.IbvWcOpcode.valueOf(wc.getOpcode());
         switch (opcode) {
             case IBV_WC_RECV: {
                 int id = (int) wc.getWr_id();
                 // Merge data chunk
                 mergeDataFsm(recvBuffers[id]);
-                try {
-                    postRecv(id);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+                postRecv(id);
                 if (recvOffset >= recvData.length) {
                     handleRecvEvent(decode(recvData));
                     // Start handling next packet
@@ -217,15 +232,11 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
             break;
             case IBV_WC_SEND: {
                 int id = (int) wc.getWr_id();
-                try {
-                    freePostSend(id); // TODO whether release
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+                freePostSend(id); // TODO whether release
             }
             break;
             default:
-                break;
+                throw new IOException("Unknown opcode: " + wc.getOpcode());
         }
     }
 
