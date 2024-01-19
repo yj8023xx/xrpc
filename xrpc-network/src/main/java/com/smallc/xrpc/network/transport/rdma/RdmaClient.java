@@ -1,7 +1,7 @@
 package com.smallc.xrpc.network.transport.rdma;
 
 import com.smallc.xrpc.network.transport.TransportClient;
-import com.smallc.xrpc.network.transport.InFlightRequests;
+import com.smallc.xrpc.network.transport.PendingRequests;
 import com.smallc.xrpc.network.transport.Transport;
 
 import java.io.IOException;
@@ -16,19 +16,21 @@ import java.net.SocketAddress;
 public class RdmaClient implements TransportClient {
 
     private XRpcClientGroup clientGroup;
-    private InFlightRequests inFlightRequests;
+    private PendingRequests pendingRequests;
+    private int threadCount = 4;
 
     public RdmaClient() {
         try {
-            clientGroup = XRpcClientGroup.createClientGroup(1000)
+            clientGroup = XRpcClientGroup.createClientGroup(1000, threadCount)
                     .option(RdmaOption.MAX_SEND_WR, 100)
                     .option(RdmaOption.MAX_RECV_WR, 100)
                     .option(RdmaOption.BUFFER_SIZE, 256)
-                    .option(RdmaOption.BUFFER_COUNT, 10);
+                    .option(RdmaOption.BUFFER_COUNT, 20)
+                    .option(RdmaOption.MAX_INLINE_DATA, 64);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        inFlightRequests = new InFlightRequests();
+        pendingRequests = new PendingRequests();
     }
 
     @Override
@@ -40,8 +42,7 @@ public class RdmaClient implements TransportClient {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        clientEndPoint.setInFlightRequests(inFlightRequests);
-        return new RdmaTransport(clientEndPoint, inFlightRequests);
+        return new RdmaTransport(clientEndPoint, pendingRequests);
     }
 
     @Override
