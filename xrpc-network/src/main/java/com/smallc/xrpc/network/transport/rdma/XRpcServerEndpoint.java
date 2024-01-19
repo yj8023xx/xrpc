@@ -2,6 +2,8 @@ package com.smallc.xrpc.network.transport.rdma;
 
 import com.ibm.disni.verbs.RdmaCmId;
 import com.smallc.xrpc.network.protocol.XRpcMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -13,26 +15,22 @@ import java.io.IOException;
  */
 public class XRpcServerEndpoint extends XRpcEndpoint {
 
+    private static final Logger logger = LoggerFactory.getLogger(XRpcServerEndpoint.class);
+
     private XRpcServerGroup serverGroup;
-    private int clusterId;
 
     protected XRpcServerEndpoint(XRpcServerGroup group, RdmaCmId idPriv, boolean serverSide) throws IOException {
         super(group, idPriv, serverSide);
         this.serverGroup = group;
-        this.clusterId = group.newClusterId();
     }
 
     @Override
-    public void handleRecvEvent(XRpcMessage request) {
+    public void onMessageComplete(XRpcMessage request) {
         try {
             serverGroup.invoke(this, request);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public int getClusterId() {
-        return clusterId;
     }
 
 }
