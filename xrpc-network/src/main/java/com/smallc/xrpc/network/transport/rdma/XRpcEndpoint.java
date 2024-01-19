@@ -48,7 +48,7 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
 
     private State state;
 
-    public abstract void handleRecvEvent(XRpcMessage message);
+    public abstract void onMessageComplete(XRpcMessage message);
 
     protected XRpcEndpoint(XRpcEndpointGroup group, RdmaCmId idPriv, boolean serverSide) throws IOException {
         super(group, idPriv, serverSide);
@@ -78,12 +78,12 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         dataMr = registerMemory(dataBuffer).execute().free().getMr();
 
         // Split into two memory blocks of the same size
-        int sendBufferOffset = bufferSize * bufferCount;
-        dataBuffer.limit(dataBuffer.position() + sendBufferOffset);
+        int offset = bufferSize * bufferCount;
+        dataBuffer.limit(dataBuffer.position() + offset);
         ByteBuffer recvBuffer = dataBuffer.slice();
 
-        dataBuffer.position(sendBufferOffset);
-        dataBuffer.limit(dataBuffer.position() + sendBufferOffset);
+        dataBuffer.position(offset);
+        dataBuffer.limit(dataBuffer.position() + offset);
         ByteBuffer sendBuffer = dataBuffer.slice();
 
         for (int i = 0; i < bufferCount; i++) {
@@ -143,20 +143,15 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
 
     public synchronized boolean send(XRpcMessage message) throws IOException, InterruptedException {
         byte[] data = encode(message);
-        // Add a header field to represent the size of the data
         short totalSize = (short) data.length;
-        byte[] newData = new byte[totalSize + Short.BYTES];
-        // Fill the header with totalSize
-        ByteBuffer shortBuffer = ByteBuffer.allocate(Short.BYTES);
-        shortBuffer.putShort(totalSize);
-        byte[] shortBytes = shortBuffer.array();
-        System.arraycopy(shortBytes, 0, newData, 0, shortBytes.length);
-        System.arraycopy(data, 0, newData, shortBytes.length, totalSize);
+        ByteBuffer newData = ByteBuffer.allocate(totalSize + Short.BYTES);
+        // Add a header field to represent the size of the data
+        newData.putShort(totalSize).put(data);
         // Slice message
-        List<byte[]> chunkList = sliceData(newData, bufferSize);
+        List<byte[]> chunkList = sliceData(newData.array(), bufferSize);
         // Send chunks
         for (byte[] chunk : chunkList) {
-            SVCPostSend postSend = freePostSends.take(); // TODO take or poll
+            SVCPostSend postSend = freePostSends.take(); // TODO: take or poll
             if (null != postSend) {
                 int id = (int) postSend.getWrMod(0).getWr_id();
                 postSend.getWrMod(0).getSgeMod(0).setLength(chunk.length);
@@ -178,7 +173,7 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         recvCalls[index].execute();
     }
 
-    public void freePostSend(int id) throws IOException {
+    public void freePostSend(int id) {
         SVCPostSend postSend = pendingPostSends.remove(id);
         this.freePostSends.add(postSend);
     }
@@ -203,6 +198,24 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         }
     }
 
+    public void handleRecvEvent(IbvWC wc) throws IOException {
+        int id = (int) wc.getWr_id();
+        // Merge data chunk
+        mergeDataFsm(recvBuffers[id]);
+        postRecv(id);
+        if (recvOffset >= recvData.length) {
+            XRpcMessage message = decode(recvData);
+            onMessageComplete(message);
+            // Start handling next message
+            state = State.INITIAL;
+        }
+    }
+
+    private void handleSendEvent(IbvWC wc) throws IOException {
+        int id = (int) wc.getWr_id();
+        freePostSend(id); // TODO whether release
+    }
+
     /**
      * Only execute in a single thread
      *
@@ -218,23 +231,12 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
 
         IbvWC.IbvWcOpcode opcode = IbvWC.IbvWcOpcode.valueOf(wc.getOpcode());
         switch (opcode) {
-            case IBV_WC_RECV: {
-                int id = (int) wc.getWr_id();
-                // Merge data chunk
-                mergeDataFsm(recvBuffers[id]);
-                postRecv(id);
-                if (recvOffset >= recvData.length) {
-                    handleRecvEvent(decode(recvData));
-                    // Start handling next packet
-                    state = State.INITIAL;
-                }
-            }
-            break;
-            case IBV_WC_SEND: {
-                int id = (int) wc.getWr_id();
-                freePostSend(id); // TODO whether release
-            }
-            break;
+            case IBV_WC_RECV:
+                handleRecvEvent(wc);
+                break;
+            case IBV_WC_SEND:
+                handleSendEvent(wc);
+                break;
             default:
                 throw new IOException("Unknown opcode: " + wc.getOpcode());
         }
