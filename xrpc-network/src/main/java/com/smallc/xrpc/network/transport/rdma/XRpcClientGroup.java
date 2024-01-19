@@ -1,9 +1,6 @@
 package com.smallc.xrpc.network.transport.rdma;
 
-import com.ibm.disni.RdmaCqProvider;
 import com.ibm.disni.RdmaEndpointFactory;
-import com.ibm.disni.verbs.IbvCQ;
-import com.ibm.disni.verbs.IbvQP;
 import com.ibm.disni.verbs.RdmaCmId;
 
 import java.io.IOException;
@@ -20,23 +17,30 @@ public class XRpcClientGroup extends XRpcEndpointGroup<XRpcClientEndpoint> {
         super(timeout);
     }
 
+    private XRpcClientGroup(int timeout, int threadCount) throws IOException {
+        super(timeout, threadCount);
+    }
+
+    private XRpcClientGroup(int timeout, long[] affinities) throws IOException {
+        super(timeout, affinities);
+    }
+
     public static XRpcClientGroup createClientGroup(int timeout) throws IOException {
         XRpcClientGroup group = new XRpcClientGroup(timeout);
         group.init(new XRpcClientFactory(group));
         return group;
     }
 
-    @Override
-    public RdmaCqProvider createCqProvider(XRpcClientEndpoint endPoint) throws IOException {
-        return new RdmaCqProvider(endPoint.getIdPriv().getVerbs(), getMaxSendWr() + getMaxRecvWr());
+    public static XRpcClientGroup createClientGroup(int timeout, int threadCount) throws IOException {
+        XRpcClientGroup group = new XRpcClientGroup(timeout, threadCount);
+        group.init(new XRpcClientFactory(group));
+        return group;
     }
 
-    @Override
-    public IbvQP createQpProvider(XRpcClientEndpoint endPoint) throws IOException {
-        RdmaCqProvider cqProvider = endPoint.getCqProvider();
-        IbvCQ cq = cqProvider.getCQ();
-        IbvQP qp = this.createQp(endPoint.getIdPriv(), endPoint.getPd(), cq);
-        return qp;
+    public static XRpcClientGroup createClientGroup(int timeout, long[] affinities) throws IOException {
+        XRpcClientGroup group = new XRpcClientGroup(timeout, affinities);
+        group.init(new XRpcClientFactory(group));
+        return group;
     }
 
     @Override
