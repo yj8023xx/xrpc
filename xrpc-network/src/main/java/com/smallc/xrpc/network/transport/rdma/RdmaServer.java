@@ -17,30 +17,31 @@ public class RdmaServer implements TransportServer {
 
     private XRpcServerGroup serverGroup;
     private RdmaServerEndpoint<XRpcServerEndpoint> serverEndPoint;
-    private boolean flag = false;
+    private int threadCount = 4;
+    private boolean running = false;
 
     @Override
     public void start(String host, int port, RequestHandlerRegistry requestHandlerRegistry) throws Exception {
-        long[] affinity = new long[10];
-        serverGroup = XRpcServerGroup.createServerGroup(1000, affinity, requestHandlerRegistry)
+        serverGroup = XRpcServerGroup.createServerGroup(1000, threadCount, requestHandlerRegistry)
                 .option(RdmaOption.MAX_SEND_WR, 100)
                 .option(RdmaOption.MAX_RECV_WR, 100)
                 .option(RdmaOption.BUFFER_SIZE, 256)
-                .option(RdmaOption.BUFFER_COUNT, 20);
+                .option(RdmaOption.BUFFER_COUNT, 20)
+                .option(RdmaOption.MAX_INLINE_DATA, 64);
         serverEndPoint = serverGroup.createServerEndpoint();
         InetSocketAddress address = new InetSocketAddress(host, port);
         serverEndPoint.bind(address, 100);
-        flag = true;
-        while (flag) {
+        running = true;
+        while (running) {
             serverEndPoint.accept();
         }
     }
 
     @Override
     public void stop() {
-        flag = false;
+        running = false;
         try {
-            serverEndPoint.close();
+            serverGroup.close();
         } catch (IOException e) {
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
