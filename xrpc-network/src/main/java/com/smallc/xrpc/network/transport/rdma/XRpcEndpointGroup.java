@@ -1,5 +1,7 @@
 package com.smallc.xrpc.network.transport.rdma;
 
+import com.ibm.disni.RdmaCqProcessor;
+import com.ibm.disni.RdmaCqProvider;
 import com.ibm.disni.RdmaEndpointGroup;
 import com.ibm.disni.verbs.*;
 
@@ -13,28 +15,40 @@ import java.io.IOException;
  */
 public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndpointGroup<E> {
 
-    private int maxSendWr;
-    private int maxRecvWr;
-    private int maxSendSge;
-    private int maxRecvSge;
-    private int maxInlineData;
-    private int bufferSize;
-    private int bufferCount;
+    private int clusterCount;
+    private int curCluster;
+    private long affinities[];
+    private volatile RdmaCqProcessor[] cqProcessors;
+
+    private int maxSendWr = 100;
+    private int maxRecvWr = 100;
+    private int maxSendSge = 6;
+    private int maxRecvSge = 6;
+    private int maxInlineData = 64;
+    private int bufferSize = 128;
+    private int bufferCount = 20;
 
     public XRpcEndpointGroup(int timeout) throws IOException {
-        this(100, 100, 10, 10, 128, 256, 10, timeout);
+        this(timeout, 1);
     }
 
-    public XRpcEndpointGroup(int maxSendWr, int maxRecvWr, int maxSendSge, int maxRecvSge, int maxInlineData, int bufferSize, int bufferCount, int timeout) throws IOException {
+    public XRpcEndpointGroup(int timeout, int threadCount) throws IOException {
         super(timeout);
+        this.clusterCount = threadCount;
+        this.curCluster = 0;
+        this.affinities = new long[threadCount];
+        for (int i = 0; i < threadCount; i++) {
+            this.affinities[i] = 1 << i;
+        }
+        this.cqProcessors = new RdmaCqProcessor[threadCount];
+    }
 
-        this.maxSendWr = maxSendWr;
-        this.maxRecvWr = maxRecvWr;
-        this.maxSendSge = maxSendSge;
-        this.maxRecvSge = maxRecvSge;
-        this.maxInlineData = maxInlineData;
-        this.bufferSize = bufferSize;
-        this.bufferCount = bufferCount;
+    public XRpcEndpointGroup(int timeout, long[] affinities) throws IOException {
+        super(timeout);
+        this.clusterCount = affinities.length;
+        this.curCluster = 0;
+        this.affinities = affinities;
+        this.cqProcessors = new RdmaCqProcessor[affinities.length];
     }
 
     protected synchronized IbvQP createQp(RdmaCmId id, IbvPd pd, IbvCQ cq) throws IOException {
@@ -49,6 +63,44 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
         attr.setSend_cq(cq);
         IbvQP qp = id.createQP(pd, attr);
         return qp;
+    }
+
+    @Override
+    public RdmaCqProvider createCqProvider(E endPoint) throws IOException {
+        IbvContext context = endPoint.getIdPriv().getVerbs();
+        if (null == context) {
+            throw new IOException("No context found!");
+        }
+        if (null == cqProcessors) {
+            createCqProcessors(context);
+        }
+        return cqProcessors[endPoint.getClusterId()];
+    }
+
+    // TODO: Consider the situation of multiple devices
+    private synchronized void createCqProcessors(IbvContext context) throws IOException {
+        if (null == cqProcessors) {
+            cqProcessors = new RdmaCqProcessor[clusterCount];
+            int cqSize = maxSendWr + maxRecvWr;
+            for (int i = 0; i < clusterCount; i++) {
+                cqProcessors[i] = new XRpcCqProcessor(context, cqSize, cqSize, affinities[i], i, 1000, true);
+                cqProcessors[i].start();
+            }
+        }
+    }
+
+    @Override
+    public IbvQP createQpProvider(E endPoint) throws IOException {
+        IbvCQ cq = endPoint.getCqProvider().getCQ();
+        IbvQP qp = this.createQp(endPoint.getIdPriv(), endPoint.getPd(), cq);
+        cqProcessors[endPoint.getClusterId()].registerQP(qp.getQp_num(), endPoint);
+        return qp;
+    }
+
+    protected synchronized int newClusterId() {
+        int newClusterId = curCluster;
+        curCluster = (curCluster + 1) % clusterCount;
+        return newClusterId;
     }
 
     public XRpcEndpointGroup option(RdmaOption option, int value) {
@@ -67,6 +119,14 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
                 bufferCount = value;
         }
         return this;
+    }
+
+    @Override
+    public synchronized void close() throws IOException, InterruptedException {
+        super.close();
+        for (RdmaCqProcessor processor : cqProcessors) {
+            processor.close();
+        }
     }
 
     public int getMaxSendWr() {
