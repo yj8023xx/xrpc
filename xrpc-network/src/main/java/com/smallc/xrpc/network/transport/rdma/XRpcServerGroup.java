@@ -23,14 +23,14 @@ public class XRpcServerGroup extends XRpcEndpointGroup<XRpcServerEndpoint> {
     private XRpcResourceManager resourceManager;
     private RequestHandlerRegistry requestHandlerRegistry;
 
-    private XRpcServerGroup(int timeout, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
-        super(timeout);
-        this.resourceManager = new XRpcResourceManager(timeout, getClusterCount());
+    private XRpcServerGroup(int timeout, int clusterCount, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
+        super(timeout, clusterCount);
+        this.resourceManager = new XRpcResourceManager(timeout, clusterCount);
         this.requestHandlerRegistry = requestHandlerRegistry;
     }
 
-    public static XRpcServerGroup createServerGroup(int timeout, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
-        XRpcServerGroup group = new XRpcServerGroup(timeout, requestHandlerRegistry);
+    public static XRpcServerGroup createServerGroup(int timeout, int clusterCount, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
+        XRpcServerGroup group = new XRpcServerGroup(timeout, clusterCount, requestHandlerRegistry);
         group.init(new XRpcServerFactory(group));
         return group;
     }

@@ -19,8 +19,8 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
 
     private static final Logger logger = LoggerFactory.getLogger(XRpcEndpointGroup.class);
 
-    private int clusterCount = 4;
-    private int curCluster = 0;
+    private int clusterCount;
+    private int curCluster;
     private volatile RdmaCqProcessor[] cqProcessors;
 
     private int maxSendWr = 100;
@@ -30,8 +30,10 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
     private int maxInlineData = 64;
     private int bufferSize = 128;
 
-    public XRpcEndpointGroup(int timeout) throws IOException {
+    public XRpcEndpointGroup(int timeout, int clusterCount) throws IOException {
         super(timeout);
+        this.clusterCount = clusterCount;
+        this.curCluster = 0;
     }
 
     protected synchronized IbvQP createQp(RdmaCmId id, IbvPd pd, IbvCQ cq) throws IOException {
@@ -109,9 +111,6 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
                 break;
             case BUFFER_SIZE:
                 bufferSize = value;
-                break;
-            case CLUSTER_COUNT:
-                clusterCount = value;
                 break;
         }
         return this;

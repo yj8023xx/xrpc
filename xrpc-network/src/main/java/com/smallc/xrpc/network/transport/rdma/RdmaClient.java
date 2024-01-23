@@ -1,6 +1,5 @@
 package com.smallc.xrpc.network.transport.rdma;
 
-import com.ibm.disni.verbs.IbvSendWR;
 import com.smallc.xrpc.network.transport.TransportClient;
 import com.smallc.xrpc.network.transport.PendingRequests;
 import com.smallc.xrpc.network.transport.Transport;
@@ -18,14 +17,14 @@ public class RdmaClient implements TransportClient {
 
     private XRpcClientGroup clientGroup;
     private PendingRequests pendingRequests;
+    private static final int DEFAULT_CLUSTER_COUNT = 16;
 
     public RdmaClient() {
         try {
-            clientGroup = XRpcClientGroup.createClientGroup(1000)
+            clientGroup = XRpcClientGroup.createClientGroup(1000, DEFAULT_CLUSTER_COUNT)
                     .option(RdmaOption.MAX_SEND_WR, 100)
                     .option(RdmaOption.MAX_RECV_WR, 150)
-                    .option(RdmaOption.BUFFER_SIZE, 256)
-                    .option(RdmaOption.CLUSTER_COUNT, 4);
+                    .option(RdmaOption.BUFFER_SIZE, 256);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

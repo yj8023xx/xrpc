@@ -13,12 +13,12 @@ import java.io.IOException;
  */
 public class XRpcClientGroup extends XRpcEndpointGroup<XRpcClientEndpoint> {
 
-    private XRpcClientGroup(int timeout) throws IOException {
-        super(timeout);
+    private XRpcClientGroup(int timeout, int clusterCount) throws IOException {
+        super(timeout, clusterCount);
     }
 
-    public static XRpcClientGroup createClientGroup(int timeout) throws IOException {
-        XRpcClientGroup group = new XRpcClientGroup(timeout);
+    public static XRpcClientGroup createClientGroup(int timeout, int clusterCount) throws IOException {
+        XRpcClientGroup group = new XRpcClientGroup(timeout, clusterCount);
         group.init(new XRpcClientFactory(group));
         return group;
     }
