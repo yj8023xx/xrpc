@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 注册中心
+ * Registry
  *
  * @author yj8023xx
  * @version 1.0
@@ -15,30 +15,30 @@ import java.util.Map;
 public interface Registry {
 
     /**
-     * 所有支持的协议
+     * Get all supported schemes
      */
     Collection<String> supportedSchemes();
 
     /**
-     * 连接注册中心
+     * Connect to registry
      *
-     * @param nameServiceUri 注册中心地址
+     * @param registryUri
      */
-    void connect(URI nameServiceUri);
+    void connect(URI registryUri);
 
     /**
-     * 注册服务
+     * Register service
      *
-     * @param serviceName 服务名称
-     * @param uri         服务地址
+     * @param serviceName
+     * @param uri
      */
     void registerService(String serviceName, URI uri) throws Exception;
 
     /**
-     * 获取服务地址
+     * Get service address
      *
-     * @param serviceName 服务名称
-     * @return 服务地址
+     * @param serviceName
+     * @return A list of service address
      */
     List<URI> getServiceAddress(String serviceName) throws Exception;
 
