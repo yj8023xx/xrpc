@@ -17,7 +17,7 @@ public class RdmaServer implements TransportServer {
 
     private XRpcServerGroup serverGroup;
     private RdmaServerEndpoint<XRpcServerEndpoint> serverEndPoint;
-    private static final int DEFAULT_GROUP_THREADS = Math.max(1, Runtime.getRuntime().availableProcessors() * 2);
+    private static final int DEFAULT_GROUP_THREADS = 4;
     private boolean running = false;
 
     @Override
