@@ -42,7 +42,7 @@ The framework is divided into 5 modules based on different roles: client, server
 
 **Manual Programming Approach**
 
-```
+```java
 public class Server {
 
     private static final Logger logger = LoggerFactory.getLogger(Server.class);
@@ -88,7 +88,7 @@ public class Client {
 
 **Integration with Spring**
 
-```
+```java
 public class Server {
 
     private static final Logger logger = LoggerFactory.getLogger(Server.class);
