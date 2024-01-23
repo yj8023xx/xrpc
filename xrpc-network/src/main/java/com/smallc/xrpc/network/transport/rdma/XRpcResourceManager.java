@@ -26,15 +26,8 @@ public class XRpcResourceManager {
     public XRpcResourceManager(int timeout, int threadCount) {
         this.allocators = new XRpcResourceAllocator[threadCount];
         for (int i = 0; i < threadCount; i++) {
+            logger.info("Create a allocator, index {}, affinity {}.", i, 1 << i);
             allocators[i] = new XRpcResourceAllocator(1 << i, timeout);
-            allocators[i].start();
-        }
-    }
-
-    public XRpcResourceManager(int timeout, long[] affinities) {
-        this.allocators = new XRpcResourceAllocator[affinities.length];
-        for (int i = 0; i < affinities.length; i++) {
-            allocators[i] = new XRpcResourceAllocator(affinities[i], timeout);
             allocators[i].start();
         }
     }

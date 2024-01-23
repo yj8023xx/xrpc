@@ -19,9 +19,8 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
 
     private static final Logger logger = LoggerFactory.getLogger(XRpcEndpointGroup.class);
 
-    private int clusterCount;
-    private int curCluster;
-    private long affinities[];
+    private int clusterCount = 4;
+    private int curCluster = 0;
     private volatile RdmaCqProcessor[] cqProcessors;
 
     private int maxSendWr = 100;
@@ -32,24 +31,7 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
     private int bufferSize = 128;
 
     public XRpcEndpointGroup(int timeout) throws IOException {
-        this(timeout, 1);
-    }
-
-    public XRpcEndpointGroup(int timeout, int threadCount) throws IOException {
         super(timeout);
-        this.clusterCount = threadCount;
-        this.curCluster = 0;
-        this.affinities = new long[threadCount];
-        for (int i = 0; i < threadCount; i++) {
-            this.affinities[i] = 1 << i;
-        }
-    }
-
-    public XRpcEndpointGroup(int timeout, long[] affinities) throws IOException {
-        super(timeout);
-        this.clusterCount = affinities.length;
-        this.curCluster = 0;
-        this.affinities = affinities;
     }
 
     protected synchronized IbvQP createQp(RdmaCmId id, IbvPd pd, IbvCQ cq) throws IOException {
@@ -84,7 +66,7 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
             cqProcessors = new RdmaCqProcessor[clusterCount];
             int cqSize = maxSendWr + maxRecvWr;
             for (int i = 0; i < clusterCount; i++) {
-                cqProcessors[i] = new XRpcCqProcessor(context, cqSize, cqSize, affinities[i], i, 1000, true);
+                cqProcessors[i] = new XRpcCqProcessor(context, cqSize, cqSize, 1 << i, i, 1000, true);
                 cqProcessors[i].start();
             }
         }
@@ -122,8 +104,14 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
             case MAX_RECV_SGE:
                 maxRecvSge = value;
                 break;
+            case MAX_INLINE_DATA:
+                maxInlineData = value;
+                break;
             case BUFFER_SIZE:
                 bufferSize = value;
+                break;
+            case CLUSTER_COUNT:
+                clusterCount = value;
                 break;
         }
         return this;
@@ -159,6 +147,10 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
 
     public int getBufferSize() {
         return bufferSize;
+    }
+
+    public int getClusterCount() {
+        return clusterCount;
     }
 
 }

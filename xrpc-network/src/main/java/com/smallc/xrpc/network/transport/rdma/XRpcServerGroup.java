@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * @author yj8023xx
@@ -22,23 +24,20 @@ public class XRpcServerGroup extends XRpcEndpointGroup<XRpcServerEndpoint> {
 
     private XRpcResourceManager resourceManager;
     private RequestHandlerRegistry requestHandlerRegistry;
+    private ThreadPoolExecutor executor;
 
     private XRpcServerGroup(int timeout, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
         super(timeout);
         this.resourceManager = new XRpcResourceManager(timeout);
         this.requestHandlerRegistry = requestHandlerRegistry;
+        this.executor = new ScheduledThreadPoolExecutor(Math.max(1, Runtime.getRuntime().availableProcessors()));
     }
 
-    private XRpcServerGroup(int timeout, int threadCount, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
-        super(timeout, threadCount);
-        this.resourceManager = new XRpcResourceManager(timeout, threadCount);
+    private XRpcServerGroup(int timeout, int poolSize, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
+        super(timeout);
+        this.resourceManager = new XRpcResourceManager(timeout, getClusterCount());
         this.requestHandlerRegistry = requestHandlerRegistry;
-    }
-
-    private XRpcServerGroup(int timeout, long[] affinities, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
-        super(timeout, affinities);
-        this.resourceManager = new XRpcResourceManager(timeout, affinities);
-        this.requestHandlerRegistry = requestHandlerRegistry;
+        this.executor = new ScheduledThreadPoolExecutor(poolSize);
     }
 
     public static XRpcServerGroup createServerGroup(int timeout, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
@@ -47,14 +46,8 @@ public class XRpcServerGroup extends XRpcEndpointGroup<XRpcServerEndpoint> {
         return group;
     }
 
-    public static XRpcServerGroup createServerGroup(int timeout, int threadCount, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
-        XRpcServerGroup group = new XRpcServerGroup(timeout, threadCount, requestHandlerRegistry);
-        group.init(new XRpcServerFactory(group));
-        return group;
-    }
-
-    public static XRpcServerGroup createServerGroup(int timeout, long[] affinities, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
-        XRpcServerGroup group = new XRpcServerGroup(timeout, affinities, requestHandlerRegistry);
+    public static XRpcServerGroup createServerGroup(int timeout, int poolSize, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
+        XRpcServerGroup group = new XRpcServerGroup(timeout, poolSize, requestHandlerRegistry);
         group.init(new XRpcServerFactory(group));
         return group;
     }
@@ -75,17 +68,18 @@ public class XRpcServerGroup extends XRpcEndpointGroup<XRpcServerEndpoint> {
         if (null != handler) {
             XRpcMessage response = handler.handle(request);
             if (null != response) {
-                try {
-                    endpoint.send(response);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+                XRpcCqProcessor cqProcessor = (XRpcCqProcessor) endpoint.getCqProvider();
+                cqProcessor.addTask(new XRpcCqProcessor.SendTask(endpoint, response));
             } else {
                 logger.warn("Response is null!");
             }
         } else {
             throw new Exception(String.format("No handler for request with type: %d!", request.getHeader().getMessageTypeId()));
         }
+    }
+
+    public void submit(Runnable task) {
+        executor.submit(task);
     }
 
     @Override

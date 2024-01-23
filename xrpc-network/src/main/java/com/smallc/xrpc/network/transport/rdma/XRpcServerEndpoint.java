@@ -2,10 +2,13 @@ package com.smallc.xrpc.network.transport.rdma;
 
 import com.ibm.disni.verbs.RdmaCmId;
 import com.smallc.xrpc.network.protocol.XRpcMessage;
+import com.smallc.xrpc.network.protocol.XRpcRequest;
+import com.smallc.xrpc.network.transport.RequestHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * @author yj8023xx
@@ -26,10 +29,26 @@ public class XRpcServerEndpoint extends XRpcEndpoint {
 
     @Override
     public void onMessageComplete(XRpcMessage request) {
-        try {
-            serverGroup.invoke(this, request);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        serverGroup.submit(new InvokeTask(this, request));
+    }
+
+    private class InvokeTask implements Runnable {
+
+        private XRpcServerEndpoint endpoint;
+        private XRpcMessage request;
+
+        public InvokeTask(XRpcServerEndpoint endpoint, XRpcMessage request) {
+            this.endpoint = endpoint;
+            this.request = request;
+        }
+
+        @Override
+        public void run() {
+            try {
+                serverGroup.invoke(endpoint, request);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
