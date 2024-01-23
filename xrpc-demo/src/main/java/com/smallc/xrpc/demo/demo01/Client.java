@@ -19,12 +19,19 @@ public class Client {
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
 
     public static void main(String[] args) {
+        // Check if enough command-line arguments are provided
+        if (args.length < 2) {
+            System.out.println("Usage: java Client <ip-address> <port>");
+            System.exit(1); // Exit the program indicating insufficient parameters
+        }
+
+        // Retrieve command-line arguments
+        String host = args[0];
+        int port = Integer.parseInt(args[1]);
+        URI serviceUri = URI.create("rpc://" + host + ":" + port);
+
         logger.info("Create xRPC client instance...");
         XRpcClient client = new XRpcClient();
-
-        String host = "127.0.0.1";
-        int port = 8090;
-        URI serviceUri = URI.create("rpc://" + host + ":" + port);
 
         logger.info("Create service stub...");
         HelloService helloService = client.getRemoteService(HelloService.class, serviceUri, SerializationType.JSON);
