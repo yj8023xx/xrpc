@@ -34,15 +34,17 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
     protected XRpcEndpointGroup group;
     private IbvMr dataMr;
     private ByteBuffer dataBuffer; // direct buffer
+    private int bufferSize;
+    private int sendWrCount;
+    private int recvWrCount;
     private ByteBuffer[] sendBuffers;
     private ByteBuffer[] recvBuffers;
     private SVCPostSend[] sendCalls;
     private SVCPostRecv[] recvCalls;
     private ConcurrentHashMap<Integer, SVCPostSend> pendingPostSends;
     private ArrayBlockingQueue<SVCPostSend> freePostSends;
-    private int bufferSize;
-    private int bufferCount;
 
+    // Used for receiving data
     private int recvOffset;
     private byte[] recvData;
 
@@ -60,14 +62,15 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
         this.group = group;
 
         this.bufferSize = group.getBufferSize();
-        this.bufferCount = group.getBufferCount();
-        this.sendBuffers = new ByteBuffer[bufferCount];
-        this.recvBuffers = new ByteBuffer[bufferCount];
-        this.sendCalls = new SVCPostSend[bufferCount];
-        this.recvCalls = new SVCPostRecv[bufferCount];
+        this.sendWrCount = group.getMaxSendWr();
+        this.recvWrCount = group.getMaxRecvWr();
+        this.sendBuffers = new ByteBuffer[sendWrCount];
+        this.recvBuffers = new ByteBuffer[recvWrCount];
+        this.sendCalls = new SVCPostSend[sendWrCount];
+        this.recvCalls = new SVCPostRecv[recvWrCount];
 
         this.pendingPostSends = new ConcurrentHashMap<>();
-        this.freePostSends = new ArrayBlockingQueue<>(bufferCount);
+        this.freePostSends = new ArrayBlockingQueue<>(sendWrCount);
 
         this.state = State.INITIAL;
     }
@@ -80,32 +83,34 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
     @Override
     protected synchronized void init() throws IOException {
         // Allocate and register memory
-        dataBuffer = ByteBuffer.allocateDirect(bufferSize * bufferCount * 2);
+        dataBuffer = ByteBuffer.allocateDirect(bufferSize * (sendWrCount + recvWrCount));
         dataMr = registerMemory(dataBuffer).execute().free().getMr();
 
-        // Split into two memory blocks of the same size
-        int offset = bufferSize * bufferCount;
-        dataBuffer.limit(dataBuffer.position() + offset);
-        ByteBuffer recvBuffer = dataBuffer.slice();
-
-        dataBuffer.position(offset);
+        // Split into two memory blocks
+        int offset = bufferSize * sendWrCount;
         dataBuffer.limit(dataBuffer.position() + offset);
         ByteBuffer sendBuffer = dataBuffer.slice();
 
-        for (int i = 0; i < bufferCount; i++) {
-            recvBuffer.position(i * bufferSize);
-            recvBuffer.limit(recvBuffer.position() + bufferSize);
-            recvBuffers[i] = recvBuffer.slice();
+        dataBuffer.position(offset);
+        dataBuffer.limit(dataBuffer.capacity());
+        ByteBuffer recvBuffer = dataBuffer.slice();
 
+        for (int i = 0; i < sendWrCount; i++) {
             sendBuffer.position(i * bufferSize);
             sendBuffer.limit(sendBuffer.position() + bufferSize);
             sendBuffers[i] = sendBuffer.slice();
 
-            recvCalls[i] = buildRecvWr(i);
             sendCalls[i] = buildSendWr(i);
-
             freePostSends.add(sendCalls[i]);
-            recvCalls[i].execute(); // pre post
+        }
+
+        for (int i = 0; i < recvWrCount; i++) {
+            recvBuffer.position(i * bufferSize);
+            recvBuffer.limit(recvBuffer.position() + bufferSize);
+            recvBuffers[i] = recvBuffer.slice();
+
+            recvCalls[i] = buildRecvWr(i);
+            recvCalls[i].execute(); // Pre-post recv wr
         }
     }
 

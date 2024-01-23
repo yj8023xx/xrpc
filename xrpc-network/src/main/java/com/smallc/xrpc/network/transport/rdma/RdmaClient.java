@@ -17,13 +17,14 @@ public class RdmaClient implements TransportClient {
 
     private XRpcClientGroup clientGroup;
     private PendingRequests pendingRequests;
-    private int threadCount = 4;
+    private static final int DEFAULT_GROUP_THREADS = Math.max(1, Runtime.getRuntime().availableProcessors() * 2);
 
     public RdmaClient() {
         try {
-            clientGroup = XRpcClientGroup.createClientGroup(1000, threadCount)
-                    .option(RdmaOption.BUFFER_SIZE, 128)
-                    .option(RdmaOption.BUFFER_COUNT, 200);
+            clientGroup = XRpcClientGroup.createClientGroup(1000, DEFAULT_GROUP_THREADS)
+                    .option(RdmaOption.MAX_SEND_WR, 100)
+                    .option(RdmaOption.MAX_RECV_WR, 150)
+                    .option(RdmaOption.BUFFER_SIZE, 256);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

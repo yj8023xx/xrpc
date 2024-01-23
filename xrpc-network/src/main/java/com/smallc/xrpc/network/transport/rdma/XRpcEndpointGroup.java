@@ -25,12 +25,11 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
     private volatile RdmaCqProcessor[] cqProcessors;
 
     private int maxSendWr = 100;
-    private int maxRecvWr = 100;
+    private int maxRecvWr = 150;
     private int maxSendSge = 1;
     private int maxRecvSge = 1;
     private int maxInlineData = 64;
     private int bufferSize = 128;
-    private int bufferCount = 20;
 
     public XRpcEndpointGroup(int timeout) throws IOException {
         this(timeout, 1);
@@ -94,7 +93,7 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
     @Override
     public IbvQP createQpProvider(E endPoint) throws IOException {
         RdmaCqProcessor cqProcessor = (RdmaCqProcessor) endPoint.getCqProvider();
-        if (cqProcessor == null) {
+        if (null == cqProcessor) {
             logger.error("CqProcessor is null.");
         }
         IbvCQ cq = cqProcessor.getCQ();
@@ -125,11 +124,6 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
                 break;
             case BUFFER_SIZE:
                 bufferSize = value;
-                break;
-            case BUFFER_COUNT:
-                bufferCount = value;
-                maxSendWr = Math.max(maxSendWr, bufferCount);
-                maxRecvWr = Math.max(maxRecvWr, bufferCount);
                 break;
         }
         return this;
@@ -167,7 +161,4 @@ public abstract class XRpcEndpointGroup<E extends XRpcEndpoint> extends RdmaEndp
         return bufferSize;
     }
 
-    public int getBufferCount() {
-        return bufferCount;
-    }
 }

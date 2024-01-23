@@ -17,14 +17,15 @@ public class RdmaServer implements TransportServer {
 
     private XRpcServerGroup serverGroup;
     private RdmaServerEndpoint<XRpcServerEndpoint> serverEndPoint;
-    private int threadCount = 4;
+    private static final int DEFAULT_GROUP_THREADS = Math.max(1, Runtime.getRuntime().availableProcessors() * 2);
     private boolean running = false;
 
     @Override
     public void start(String host, int port, RequestHandlerRegistry requestHandlerRegistry) throws Exception {
-        serverGroup = XRpcServerGroup.createServerGroup(1000, threadCount, requestHandlerRegistry)
-                .option(RdmaOption.BUFFER_SIZE, 128)
-                .option(RdmaOption.BUFFER_COUNT, 200);
+        serverGroup = XRpcServerGroup.createServerGroup(1000, DEFAULT_GROUP_THREADS, requestHandlerRegistry)
+                .option(RdmaOption.MAX_SEND_WR, 100)
+                .option(RdmaOption.MAX_RECV_WR, 150)
+                .option(RdmaOption.BUFFER_SIZE, 256);
         serverEndPoint = serverGroup.createServerEndpoint();
         InetSocketAddress address = new InetSocketAddress(host, port);
         serverEndPoint.bind(address, 100);
