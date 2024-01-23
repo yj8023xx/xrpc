@@ -10,14 +10,16 @@ package com.smallc.xrpc.network.transport;
 public interface RequestHandler<T> {
 
     /**
-     * 处理请求
-     * @param request 请求命令
-     * @return 响应命令
+     * Handle request
+     *
+     * @param request
+     * @return response
      */
     T handle(T request);
 
     /**
-     * 支持的请求类型
+     *
+     * @return the type of handler
      */
     int type();
     
