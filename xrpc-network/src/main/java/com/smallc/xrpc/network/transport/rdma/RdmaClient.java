@@ -17,7 +17,7 @@ public class RdmaClient implements TransportClient {
 
     private XRpcClientGroup clientGroup;
     private PendingRequests pendingRequests;
-    private static final int DEFAULT_GROUP_THREADS = Math.max(1, Runtime.getRuntime().availableProcessors() * 2);
+    private static final int DEFAULT_GROUP_THREADS = 4;
 
     public RdmaClient() {
         try {
