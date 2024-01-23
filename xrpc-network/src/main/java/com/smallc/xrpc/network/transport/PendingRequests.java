@@ -18,7 +18,7 @@ import java.util.concurrent.TimeoutException;
 public class PendingRequests<T> implements Closeable {
     
     private final static long TIMEOUT_SEC = 10L;
-    private final Semaphore semaphore = new Semaphore(20);
+    private final Semaphore semaphore = new Semaphore(100);
     private final Map<Long, ResponseFuture<T>> futureMap = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
     private final ScheduledFuture scheduledFuture;
