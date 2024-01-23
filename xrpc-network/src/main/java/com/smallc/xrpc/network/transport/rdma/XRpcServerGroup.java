@@ -31,7 +31,7 @@ public class XRpcServerGroup extends XRpcEndpointGroup<XRpcServerEndpoint> {
 
     private XRpcServerGroup(int timeout, int threadCount, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
         super(timeout, threadCount);
-        this.resourceManager = new XRpcResourceManager(threadCount, timeout);
+        this.resourceManager = new XRpcResourceManager(timeout, threadCount);
         this.requestHandlerRegistry = requestHandlerRegistry;
     }
 
