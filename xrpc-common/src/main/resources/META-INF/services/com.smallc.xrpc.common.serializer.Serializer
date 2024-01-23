@@ -1,3 +1,0 @@
-com.smallc.xrpc.common.serializer.impl.HessianSerializer
-com.smallc.xrpc.common.serializer.impl.JsonSerializer
-com.smallc.xrpc.common.serializer.impl.ProtostuffSerializer
