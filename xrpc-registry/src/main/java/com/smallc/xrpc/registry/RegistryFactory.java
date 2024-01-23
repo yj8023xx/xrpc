@@ -14,10 +14,10 @@ import java.net.URI;
 public class RegistryFactory {
 
     /**
-     * 获取注册中心的引用
+     * Get a registry according to uri
      *
-     * @param registryUri 注册中心URI
-     * @return 注册中心引用
+     * @param registryUri
+     * @return registry
      */
     public static Registry getRegistry(URI registryUri) {
         Registry registry = null;
