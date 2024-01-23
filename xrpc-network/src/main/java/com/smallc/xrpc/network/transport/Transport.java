@@ -10,8 +10,9 @@ import java.util.concurrent.CompletableFuture;
 public interface Transport<T> {
     
     /**
-     * send request
-     * @param request rpc request
+     * Send request
+     *
+     * @param request
      * @return future
      */
     CompletableFuture<T> send(T request);
