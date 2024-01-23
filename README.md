@@ -1,100 +1,94 @@
 # xRPC
 
-xRPC 是一个轻量级、高吞吐、低延迟的 RPC 框架，能够为支持 RDMA 网络接口的应用提供超低延迟 RPC（5~6us）。本框架支持与 Spring 框架无缝整合，即现有的 Spring 应用可以无缝地集成 xRPC，从而获得更高效、更快速的 RPC 通信，进一步提升应用性能和用户体验。
+xRPC is a lightweight, high-throughput, low-latency RPC framework that provides ultra-low-latency RPC (5~10us) for applications supporting RDMA (Remote Direct Memory Access) network interfaces. This framework seamlessly integrates with the Spring framework, allowing existing Spring applications to integrate xRPC effortlessly, thereby achieving more efficient and faster RPC communication, further enhancing application performance and user experience.
 
 
 
-## 架构
+## Architecture
 
 ![registry](./img/registry.svg)
 
 
 
-## 特点
+## Features
 
-- 面向接口编程，易扩展；
-- 采用了大量的设计模式，如单例模式、工厂方法模式、享元模式和代理模式等；
-- 支持自动服务注册和发现；
-- 支持配置不同的序列化协议、注册中心和负载均衡策略；
-- 支持跨语言通信（目前支持 Java、Go 通信）
-- 支持与 Spring 框架无缝整合；
-- 支持 RDMA 通信协议，可实现极低传输延迟，且对上层应用透明。
+- Interface-oriented programming for easy extensibility.
+- Incorporates various design patterns such as Singleton, Factory Method, Flyweight, and Proxy.
+- Supports automatic service registration and discovery.
+- Configurable serialization protocols, registry centers, and load balancing strategies.
+- Supports cross-language communication (currently supports Java and Go communication).
+- Seamless integration with the Spring framework.
+- Supports RDMA communication protocol, achieving extremely low transmission latency, and transparent to upper-layer applications.
 
-> [什么是 RDMA？](https://www.fibermall.com/blog/what-is-rdma.htm)
-
-
-
-## 模块
-
-根据不同的角色任务划分为了 5 个模块，分别为 client、server、network、registry 和 common
-
-|     模块      |                         功能                         |                             说明                             |
-| :-----------: | :--------------------------------------------------: | :----------------------------------------------------------: |
-|  xrpc-client  |         主要用于创建 xRPC 客户端实例和服务桩         | 目前支持 `JDK` 动态代理的方式创建服务桩，后续会添加其他创建方式 |
-|  xrpc-server  |     主要用于创建 xRPC 服务端实例和设计请求处理器     |                              -                               |
-| xrpc-network  |  主要负责进行网络传输、将请求提交给不同的请求处理器  | 目前支持 `RDMA`、`Netty` 网络传输方式（`RDMA` 功能还待进行测试） |
-| xrpc-registry |              主要用于注册和获取服务实例              |            目前支持 `ZooKeeper`、`Nacos` 注册中心            |
-|  xrpc-common  | 公共的接口，包括序列化协议、负载均衡策略、SPI 机制等 | 目前支持 `Hessian`、`JSON` 和 `Protostuff` 等序列化方式，支持 `Random`、`RoundRobin` 和 `IPHash` 等负载均衡策略 |
+[What is RDMA?](https://www.fibermall.com/blog/what-is-rdma.htm)
 
 
 
-## 案例
+## Modules
 
-**方式一：手动编程**
+The framework is divided into 5 modules based on different roles: client, server, network, registry, and common.
 
-```java
+|    Module     |                           Function                           |                         Description                          |
+| :-----------: | :----------------------------------------------------------: | :----------------------------------------------------------: |
+|  xrpc-client  |    Mainly used to create xRPC client instances and stubs     | Currently supports creating stubs using JDK dynamic proxy, with other creation methods to be added in the future. |
+|  xrpc-server  | Mainly used to create xRPC server instances and design request handlers |                              -                               |
+| xrpc-network  | Responsible for network transmission, submitting requests to different request handlers | Currently supports RDMA and Netty network transmission methods. |
+| xrpc-registry |     Used for registering and obtaining service instances     | Currently supports ZooKeeper and Nacos as registry centers.  |
+|  xrpc-common  | Common interfaces, including serialization protocols, load balancing strategies, SPI mechanism, etc. | Currently supports serialization methods such as Hessian, JSON, and Protostuff, and load balancing strategies such as Random, RoundRobin, and IPHash. |
+
+
+
+## Examples
+
+**Manual Programming Approach**
+
+```
 public class Server {
+
     private static final Logger logger = LoggerFactory.getLogger(Server.class);
 
     public static void main(String[] args) throws Exception {
-        String host = "127.0.0.1";
-        int port = 2181;
-        URI registryUri = URI.create("zookeeper://" + host + ":" + port);
+        logger.info("Create xRPC server instance...");
+        XRpcServer server = new XRpcServer("127.0.0.1", 8090);
 
-        logger.info("创建xRPC服务端实例...");
-        XRpcServer server = new XRpcServer(8090, registryUri);
-
-        logger.info("创建服务提供者...");
+        logger.info("Register service providers...");
         HelloService helloService = new HelloServiceImpl();
-
-        logger.info("向RPC框架注册服务提供者...");
         server.addServiceProvider(HelloService.class, helloService);
 
-        logger.info("开始提供服务...");
+        logger.info("Start providing services...");
         server.start();
     }
 
 }
-```
 
-```java
 public class Client {
+
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
 
     public static void main(String[] args) {
+        logger.info("Create xRPC client instance...");
+        XRpcClient client = new XRpcClient();
+
         String host = "127.0.0.1";
-        int port = 2181;
-        URI registryUri = URI.create("zookeeper://" + host + ":" + port);
+        int port = 8090;
+        URI serviceUri = URI.create("rpc://" + host + ":" + port);
 
-        logger.info("创建xRPC客户端实例...");
-        XRpcClient client = new XRpcClient(registryUri);
-
-        logger.info("创建服务桩...");
-        HelloService helloService = client.getRemoteService(HelloService.class, SerializationType.JSON);
+        logger.info("Create service stub...");
+        HelloService helloService = client.getRemoteService(HelloService.class, serviceUri, SerializationType.JSON);
         assert helloService != null;
 
         String name = "World!";
-        logger.info("请求服务, name: {}...", name);
+        logger.info("Request: name: {}", name);
         String response = helloService.hello(name);
-        logger.info("收到响应: {}.", response);
+        logger.info("Response: {}.", response);
     }
 
 }
 ```
 
-**方式二：与 Spring 整合**
+**Integration with Spring**
 
-```java
+```
 public class Server {
 
     private static final Logger logger = LoggerFactory.getLogger(Server.class);
@@ -104,9 +98,7 @@ public class Server {
     }
 
 }
-```
 
-```java
 public class Client {
 
     public static void main(String[] args) {
@@ -116,22 +108,20 @@ public class Client {
     }
 
 }
-```
 
-```java
 @Component
 public class HelloController {
 
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
 
-    @RpcReference(loadbalance = "roundrobin", serialize = "json")
+    @RpcReference(loadbalance = "roundrobin", serialize = "protostuff")
     private HelloService helloService;
 
     public void say() {
         String name = "World!";
-        logger.info("请求服务, name: {}...", name);
+        logger.info("Request: name: {}", name);
         String response = helloService.hello(name);
-        logger.info("收到响应: {}.", response);
+        logger.info("Response: {}.", response);
     }
 
 }
@@ -139,12 +129,12 @@ public class HelloController {
 
 
 
-## 测试
+## Testing
 
-**配置**
+**Configuration**
 
 - RDMA NIC: ConnectX-3
-- CPU: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz 
+- CPU: Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz
 - OS: CentOS Linux 7
 - GCC: 10.1.0
 
@@ -152,16 +142,8 @@ public class HelloController {
 
 
 
-## 支持
+## Support
 
-本项目的其他语言支持
+Support for other languages in this project:
 
 - **[xrpc-go](https://github.com/yj8023xx/xrpc-go)**
-
-
-
-## 参考资料
-
-- **[NettyRpc](https://github.com/luxiaoxun/NettyRpc)**
-- **[simple-rpc-framework](https://github.com/liyue2008/simple-rpc-framework)**
-- **[darpc](https://github.com/zrlio/darpc)**
