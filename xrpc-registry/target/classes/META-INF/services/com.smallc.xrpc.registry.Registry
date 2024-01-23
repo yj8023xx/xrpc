@@ -1,3 +1,0 @@
-com.smallc.xrpc.registry.impl.ZooKeeperRegistry
-com.smallc.xrpc.registry.impl.LocalFileRegistry
-com.smallc.xrpc.registry.impl.JdbcRegistry
