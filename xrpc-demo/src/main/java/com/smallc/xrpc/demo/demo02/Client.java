@@ -17,8 +17,15 @@ public class Client {
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
 
     public static void main(String[] args) {
-        String host = "127.0.0.1";
-        int port = 8848;
+        // Check if enough command-line arguments are provided
+        if (args.length < 2) {
+            System.out.println("Usage: java Client <registry-ip-address> <registry-port>");
+            System.exit(1); // Exit the program indicating insufficient parameters
+        }
+
+        // Retrieve command-line arguments
+        String host = args[0];
+        int port = Integer.parseInt(args[1]);
         URI registryUri = URI.create("nacos://" + host + ":" + port);
 
         logger.info("Create xRPC client instance...");
