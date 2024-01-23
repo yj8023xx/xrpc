@@ -13,6 +13,7 @@ public enum RdmaOption {
     MAX_SEND_SGE,
     MAX_RECV_SGE,
     MAX_INLINE_DATA,
-    BUFFER_SIZE
+    BUFFER_SIZE,
+    CLUSTER_COUNT
 
 }

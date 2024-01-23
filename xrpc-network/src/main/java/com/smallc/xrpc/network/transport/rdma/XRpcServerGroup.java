@@ -25,36 +25,12 @@ public class XRpcServerGroup extends XRpcEndpointGroup<XRpcServerEndpoint> {
 
     private XRpcServerGroup(int timeout, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
         super(timeout);
-        this.resourceManager = new XRpcResourceManager(timeout);
-        this.requestHandlerRegistry = requestHandlerRegistry;
-    }
-
-    private XRpcServerGroup(int timeout, int threadCount, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
-        super(timeout, threadCount);
-        this.resourceManager = new XRpcResourceManager(timeout, threadCount);
-        this.requestHandlerRegistry = requestHandlerRegistry;
-    }
-
-    private XRpcServerGroup(int timeout, long[] affinities, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
-        super(timeout, affinities);
-        this.resourceManager = new XRpcResourceManager(timeout, affinities);
+        this.resourceManager = new XRpcResourceManager(timeout, getClusterCount());
         this.requestHandlerRegistry = requestHandlerRegistry;
     }
 
     public static XRpcServerGroup createServerGroup(int timeout, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
         XRpcServerGroup group = new XRpcServerGroup(timeout, requestHandlerRegistry);
-        group.init(new XRpcServerFactory(group));
-        return group;
-    }
-
-    public static XRpcServerGroup createServerGroup(int timeout, int threadCount, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
-        XRpcServerGroup group = new XRpcServerGroup(timeout, threadCount, requestHandlerRegistry);
-        group.init(new XRpcServerFactory(group));
-        return group;
-    }
-
-    public static XRpcServerGroup createServerGroup(int timeout, long[] affinities, RequestHandlerRegistry requestHandlerRegistry) throws IOException {
-        XRpcServerGroup group = new XRpcServerGroup(timeout, affinities, requestHandlerRegistry);
         group.init(new XRpcServerFactory(group));
         return group;
     }

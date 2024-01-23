@@ -17,28 +17,8 @@ public class XRpcClientGroup extends XRpcEndpointGroup<XRpcClientEndpoint> {
         super(timeout);
     }
 
-    private XRpcClientGroup(int timeout, int threadCount) throws IOException {
-        super(timeout, threadCount);
-    }
-
-    private XRpcClientGroup(int timeout, long[] affinities) throws IOException {
-        super(timeout, affinities);
-    }
-
     public static XRpcClientGroup createClientGroup(int timeout) throws IOException {
         XRpcClientGroup group = new XRpcClientGroup(timeout);
-        group.init(new XRpcClientFactory(group));
-        return group;
-    }
-
-    public static XRpcClientGroup createClientGroup(int timeout, int threadCount) throws IOException {
-        XRpcClientGroup group = new XRpcClientGroup(timeout, threadCount);
-        group.init(new XRpcClientFactory(group));
-        return group;
-    }
-
-    public static XRpcClientGroup createClientGroup(int timeout, long[] affinities) throws IOException {
-        XRpcClientGroup group = new XRpcClientGroup(timeout, affinities);
         group.init(new XRpcClientFactory(group));
         return group;
     }

@@ -229,7 +229,7 @@ public abstract class XRpcEndpoint extends RdmaEndpoint {
     protected void handleSendEvent(IbvWC wc) throws IOException {
         // logger.info("Free post send.");
         int id = (int) wc.getWr_id();
-        freePostSend(id); // TODO whether release
+        freePostSend(id); // TODO whether release here
     }
 
     /**
