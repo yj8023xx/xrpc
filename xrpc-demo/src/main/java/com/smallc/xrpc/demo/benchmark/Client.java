@@ -1,6 +1,6 @@
 package com.smallc.xrpc.demo.benchmark;
 
-import com.smallc.xrpc.api.hello.DataTransferService;
+import com.smallc.xrpc.api.hello.DataService;
 import com.smallc.xrpc.client.XRpcClient;
 import com.smallc.xrpc.common.serializer.SerializationType;
 import org.slf4j.Logger;
@@ -35,14 +35,14 @@ public class Client {
      */
     public void testLatency(int sendCount, int dataSize) {
         byte[] data = new byte[dataSize];
-        DataTransferService dataTransferService = client.getRemoteService(DataTransferService.class, serviceUri, SerializationType.JSON);
+        DataService dataService = client.getRemoteService(DataService.class, serviceUri, SerializationType.JSON);
         double drop_rate = 0.1;
         int drop = (int) (sendCount * drop_rate);
         long duration = 0;
         long startTime, endTime;
         for (int i = 0; i < sendCount; i++) {
             startTime = System.nanoTime();
-            dataTransferService.send(data.toString());
+            dataService.send(data.toString());
             endTime = System.nanoTime();
             if (i > drop) {
                 duration += (endTime - startTime);
@@ -63,9 +63,9 @@ public class Client {
         long[] ops = new long[threadCount];
         Thread[] workers = new Thread[threadCount];
         for (int i = 0; i < threadCount; i++) {
-            DataTransferService dataTransferService = client.getRemoteService(DataTransferService.class, serviceUri, SerializationType.JSON);
-            assert dataTransferService != null;
-            workers[i] = new Thread(new Throughput(i, executionTime, dataSize, ops, dataTransferService));
+            DataService dataService = client.getRemoteService(DataService.class, serviceUri, SerializationType.JSON);
+            assert dataService != null;
+            workers[i] = new Thread(new Throughput(i, executionTime, dataSize, ops, dataService));
             workers[i].start();
         }
         long tot = 0;
@@ -82,14 +82,14 @@ public class Client {
         private long executionTime;
         private int dataSize;
         private long[] ops;
-        private DataTransferService dataTransferService;
+        private DataService dataService;
 
-        public Throughput(int id, long executionTime, int dataSize, long[] ops, DataTransferService dataTransferService) {
+        public Throughput(int id, long executionTime, int dataSize, long[] ops, DataService dataService) {
             this.id = id;
             this.executionTime = executionTime;
             this.dataSize = dataSize;
             this.ops = ops;
-            this.dataTransferService = dataTransferService;
+            this.dataService = dataService;
         }
 
         @Override
@@ -99,7 +99,7 @@ public class Client {
             long timeout = executionTime * 1000000; // us
             long startTime = System.nanoTime();
             while (diff < timeout) {
-                dataTransferService.send(data.toString());
+                dataService.send(data.toString());
                 ops[id]++;
                 diff = (System.nanoTime() - startTime) / 1000; // us
             }

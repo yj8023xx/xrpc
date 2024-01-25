@@ -1,7 +1,7 @@
 package com.smallc.xrpc.demo.benchmark;
 
-import com.smallc.xrpc.api.hello.DataTransferService;
-import com.smallc.xrpc.demo.DataTransferServiceImpl;
+import com.smallc.xrpc.api.hello.DataService;
+import com.smallc.xrpc.demo.DataServiceImpl;
 import com.smallc.xrpc.server.XRpcServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,8 +31,8 @@ public class Server {
         XRpcServer server = new XRpcServer(host, port);
 
         logger.info("Register service providers...");
-        DataTransferService dataTransferService = new DataTransferServiceImpl();
-        server.addServiceProvider(DataTransferService.class, dataTransferService);
+        DataService dataService = new DataServiceImpl();
+        server.addServiceProvider(DataService.class, dataService);
 
         logger.info("Start providing services...");
         server.start();
