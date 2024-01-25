@@ -1,6 +1,6 @@
 package com.smallc.xrpc.demo;
 
-import com.smallc.xrpc.api.hello.DataTransferService;
+import com.smallc.xrpc.api.hello.DataService;
 
 /**
  * @author yj8023xx
@@ -8,7 +8,7 @@ import com.smallc.xrpc.api.hello.DataTransferService;
  * @date 2024/1/16
  * @since com.smallc.xrpc.network.transport.TransportServer.demo
  */
-public class DataTransferServiceImpl implements DataTransferService {
+public class DataServiceImpl implements DataService {
 
     @Override
     public String send(String data) {
