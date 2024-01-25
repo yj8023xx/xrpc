@@ -60,7 +60,7 @@ public class XRpcClient implements BeanPostProcessor, DisposableBean {
 
     public <T> T getRemoteService(Class<T> serviceClass, URI serviceUri, SerializationType type) {
         List<Transport> transports = new ArrayList<>();
-        Transport transport = createTransport(serviceUri);
+        Transport transport = transportMap.computeIfAbsent(serviceUri, this::createTransport);
         transports.add(transport);
         LoadBalancer loadBalancer = LoadBalancerFactory.getLoadBalancer(LoadBalanceType.RANDOM, transports);
         Serializer serializer = SerializerFactory.getSerializer(type);
